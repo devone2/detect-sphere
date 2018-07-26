@@ -92,7 +92,7 @@ struct FKResidual {
         Eigen::Matrix<T, 3, 1> zero(T(0),T(0),T(0));
 
         std::vector<LinkParam<T>> links;
-        links.push_back( {Eigen::Translation<T, 3>(T(0),T(0),T(0.666) * linkModifications[0]) * Eigen::AngleAxis<T>::Identity(), unitZ});
+        links.push_back( {Eigen::Translation<T, 3>(T(0),T(0),T(0.333) * linkModifications[0]) * Eigen::AngleAxis<T>::Identity(), unitZ});
         links.push_back({ Eigen::Translation<T, 3>(T(0),T(0),T(0)) * Eigen::AngleAxis<T>( T(-M_PI/2), unitX), unitZ });
         links.push_back({ Eigen::Translation<T, 3>(T(0),T(-0.316) * linkModifications[2],T(0)) * Eigen::AngleAxis<T>( T(M_PI/2), unitX), unitZ });
         links.push_back({ Eigen::Translation<T, 3>(T(0.0825) * linkModifications[3],T(0),T(0)) * Eigen::AngleAxis<T>( T(M_PI/2), unitX), unitZ });
@@ -147,7 +147,7 @@ std::vector<LinkParam<double>> makeModLinks(const std::vector<double>& linkModif
     Eigen::Vector3d zero(0,0,0);
 
     std::vector<LinkParam<double>> links;
-    links.push_back( {Eigen::Translation<double, 3>(0,0,0.666 * linkModifications[0]) * Eigen::AngleAxisd::Identity(), unitZ});
+    links.push_back( {Eigen::Translation<double, 3>(0,0,0.333 * linkModifications[0]) * Eigen::AngleAxisd::Identity(), unitZ});
     links.push_back({ Eigen::Translation<double, 3>(0,0,0) * Eigen::AngleAxisd( -M_PI/2, unitX), unitZ });
     links.push_back({ Eigen::Translation<double, 3>(0,-0.316 * linkModifications[2],0) * Eigen::AngleAxisd( M_PI/2, unitX), unitZ });
     links.push_back({ Eigen::Translation<double, 3>(0.0825* linkModifications[3],0,0) * Eigen::AngleAxisd( M_PI/2, unitX), unitZ });
@@ -236,10 +236,10 @@ int main(int argc, char** argv) {
   double camera[7] = {0,0,0,0,1,0,0};
   double xmods[8] = {1,1,1,1,1,1,1,1};
 
-  //const double initial_c[7] = {0.3,0.5,0.9,1,0,0};
-  const double initial_c[7]= {0,0,0,0,1,0,0};
+  const double initial_c[7] = {0.3,0.5,0.9,1,0,0};
+  //const double initial_c[7]= {0,0,0,0,1,0,0};
   const double initial_m[8] = {1,1,1,1,1,1,1,1};
-  std::vector<double> real_mod = {1.15,1,1.016,1.02,1,1,0.999,1};
+  std::vector<double> real_mod = {1.015,1,1.016,1.02,1,1,0.999,1};
   genObservation(initial_c,real_mod, observations,10);
   // Build the problem.
   Problem problem;
@@ -255,7 +255,7 @@ int main(int argc, char** argv) {
   }
 
 
-  problem.SetParameterLowerBound(camera, 3, -2*M_PI);
+  problem.SetParameterLowerBound(camera, 3, -M_PI);
   problem.SetParameterUpperBound(camera, 3, 2*M_PI);
 
   for(int i=0;i<8;i++) {
