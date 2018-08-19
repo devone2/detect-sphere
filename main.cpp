@@ -75,7 +75,7 @@ struct FKResidual {
         return Eigen::Matrix<T, 3, 1>(T(pos(0)),T(pos(1)),T(pos(2)));
     }
 
-    template <typename T> Eigen::Transform<T,3,Eigen::Affine> calculateFK(const std::vector<LinkParam<T>>& links, const std::vector<double>& joints) const {
+    template <typename T> Eigen::Transform<T,3,Eigen::Affine> static calculateFK(const std::vector<LinkParam<T>>& links, const std::vector<double>& joints) {
         Eigen::Transform<T,3,Eigen::Affine> pose = Eigen::Transform<T,3,Eigen::Affine>::Identity();
 
         for(auto i=0; i<links.size();i++) {
@@ -85,7 +85,7 @@ struct FKResidual {
         return pose;
     }
 
-    template <typename T> std::vector<LinkParam<T>> makeModLinks(const T * const linkModifications) const {
+    template <typename T> std::vector<LinkParam<T>> static makeModLinks(const T * const linkModifications) {
 
         Eigen::Matrix<T, 3, 1> unitZ(T(0),T(0),T(1));
         Eigen::Matrix<T, 3, 1> unitX(T(1),T(0),T(0));
@@ -109,9 +109,9 @@ struct FKResidual {
     Observation _obs2;
 };
 
+// Function prototypes
 std::string showAffine3d(const Eigen::Affine3d& trans);
 std::vector<LinkParam<double>> makeModLinks(const std::vector<double>& linkModifications);
-Eigen::Affine3d calculateModFK(const std::vector<double>& joints, const std::vector<double>& linkModifications);
 
 
 std::string showAffine3d(const Eigen::Affine3d& trans)
@@ -126,13 +126,7 @@ std::string showAffine3d(const Eigen::Affine3d& trans)
   return sstm.str();
 }
 Eigen::Affine3d calculateFK(const std::vector<LinkParam<double>>& links, const std::vector<double>& joints) {
-    Eigen::Affine3d pose = Eigen::Affine3d::Identity();
-
-    for(auto i=0; i<links.size();i++) {
-       pose = pose * links[i].origin * Eigen::AngleAxisd(joints[i], links[i].rotationVector);
-    }
-
-    return pose;
+   return FKResidual::calculateFK(links, joints);
 }
 
 Eigen::Affine3d calculateModFK(const std::vector<double>& joints, const std::vector<double>& linkModifications) {
@@ -142,21 +136,7 @@ Eigen::Affine3d calculateModFK(const std::vector<double>& joints, const std::vec
 
 std::vector<LinkParam<double>> makeModLinks(const std::vector<double>& linkModifications) {
 
-    Eigen::Vector3d unitZ(0,0,1);
-    Eigen::Vector3d unitX(1,0,0);
-    Eigen::Vector3d zero(0,0,0);
-
-    std::vector<LinkParam<double>> links;
-    links.push_back( {Eigen::Translation<double, 3>(0,0,0.333 * linkModifications[0]) * Eigen::AngleAxisd::Identity(), unitZ});
-    links.push_back({ Eigen::Translation<double, 3>(0,0,0) * Eigen::AngleAxisd( -M_PI/2, unitX), unitZ });
-    links.push_back({ Eigen::Translation<double, 3>(0,-0.316 * linkModifications[2],0) * Eigen::AngleAxisd( M_PI/2, unitX), unitZ });
-    links.push_back({ Eigen::Translation<double, 3>(0.0825* linkModifications[3],0,0) * Eigen::AngleAxisd( M_PI/2, unitX), unitZ });
-    links.push_back({ Eigen::Translation<double, 3>(-0.0825,0.384* linkModifications[4],0) * Eigen::AngleAxisd( -M_PI/2, unitX), unitZ });
-    links.push_back({ Eigen::Translation<double, 3>(0,0,0) * Eigen::AngleAxisd( M_PI/2, unitX), unitZ });
-    links.push_back({ Eigen::Translation<double, 3>(0.088 * linkModifications[6],0,0) * Eigen::AngleAxisd( M_PI/2, unitX), unitZ });
-    links.push_back({ Eigen::Translation<double, 3>(0.0,0,0.107* linkModifications[7]) * Eigen::AngleAxisd::Identity(), zero });
-
-    return links;
+    return FKResidual::makeModLinks(&linkModifications[0]);
 }
 std::vector<double> genJoints();
 double fRand(double fMin, double fMax);
@@ -233,11 +213,11 @@ int main(int argc, char** argv) {
 
   // The variable to solve for with its initial value. It will be
   // mutated in place by the solver.
-  double camera[7] = {0,0,0,0,1,0,0};
+  double camera[7] = {0,0,3,M_PI/4,1,1,0};
   double xmods[8] = {1,1,1,1,1,1,1,1};
 
-  const double initial_c[7] = {0.3,0.5,0.9,1,0,0};
-  //const double initial_c[7]= {0,0,0,0,1,0,0};
+  //const double initial_c[7] = {0.3,0.5,0.9,1,0,0};
+  const double initial_c[7]= {0,0,3,M_PI/4,1,1,0};
   const double initial_m[8] = {1,1,1,1,1,1,1,1};
   std::vector<double> real_mod = {1.015,1,1.016,1.02,1,1,0.999,1};
   genObservation(initial_c,real_mod, observations,10);
@@ -278,7 +258,7 @@ int main(int argc, char** argv) {
   std::cout << summary.FullReport() << "\n";
   std::cout << "camera : " << join(initial_c,7) << " -> \n"
             << join(camera,7) << "\n"
-            << "mods: " <<  join(initial_m, 8) << " -> \n"
+            << "mods: " <<  join(&real_mod[0], real_mod.size()) << " -> \n"
             << join(xmods,8) << "\n";
 
   // calculate cost function for original values
