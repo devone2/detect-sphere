@@ -5,8 +5,10 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/filters/voxel_grid.h>
-#include "common.h"
+#include <pcl/kdtree/kdtree.h>
 
+
+#include "common.h"
 
 int main(int argc, char** argv) {
 
@@ -74,6 +76,37 @@ int main(int argc, char** argv) {
    showStats(*cloud);
    //showStats(*cloud_filtered);
 
+   /*
+   pcl::KdTree<pcl::PointXYZRGBNormal>::Ptr tree (new pcl::KdTree<pcl::PointXYZRGBNormal>);
+     tree->setInputCloud (*cloud);
+
+     std::vector<pcl::PointIndices> cluster_indices;
+     pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+     ec.setClusterTolerance (0.02); // 2cm
+     ec.setMinClusterSize (100);
+     ec.setMaxClusterSize (25000);
+     ec.setSearchMethod (tree);
+     ec.setInputCloud (*cloud);
+     ec.extract (cluster_indices);
+
+     int j = 0;
+     for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
+     {
+       for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); ++pit) {
+
+           cloud->points[*pit].r = (100 + (j*30)) % 256;
+           cloud->points[*pit].g = 0;
+           cloud->points[*pit].b = 0;
+       }
+
+       std::cout << j << ". pointCloud representing the Cluster: " << cloud_cluster->points.size () << " data points." << std::endl;
+
+       j++;
+     }
+*/
+
+
+
 
    segmentation.setInputCloud(cloud);
    segmentation.setInputNormals(cloud);
@@ -112,4 +145,3 @@ int main(int argc, char** argv) {
 
    std::cerr << "Saved " << cloud->points.size () << " data points to test_ply.ply." << std::endl;
 }
-
