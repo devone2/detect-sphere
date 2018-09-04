@@ -15,11 +15,17 @@ int main(int argc, char** argv) {
    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
 
-   //std::string file = "/home/controller/ceres/detect-sphere-build/img/PhoFrame(0007).ply";
-   std::string file = "/home/controller/ceres/detect-sphere-build/img/less5.ply";
+   std::string file = "/home/controller/ceres/detect-sphere-build/img/PhoFrame(0007).ply";
+   //std::string file = "/home/controller/ceres/detect-sphere-build/img/less5.ply";
    //std::string file = "/home/controller/ceres/detect-sphere-build/img/ball.ply";
    pcl::io::loadPLYFile(file, *cloud);
 
+   // Create the filtering object: downsample the dataset using a leaf size of 1cm
+   pcl::VoxelGrid<pcl::PointXYZRGBNormal> vg;
+   vg.setInputCloud(cloud);
+   vg.setLeafSize (1.f, 1.f, 1.f);
+   vg.filter (*cloud_filtered);
+   std::cout << "PointCloud after filtering has: " << cloud_filtered->points.size ()  << " data points." << std::endl; //*
    /*
    pcl::VoxelGrid<pcl::PointXYZRGBNormal> sor;
    sor.setInputCloud (cloud);
@@ -75,16 +81,16 @@ int main(int argc, char** argv) {
    //showStats(*cloud_filtered);
 
 
-   segmentation.setInputCloud(cloud);
-   segmentation.setInputNormals(cloud);
-   segmentation.setModelType(pcl::SACMODEL_NORMAL_PLANE);
+   segmentation.setInputCloud(cloud_filtered);
+   segmentation.setInputNormals(cloud_filtered);
+   segmentation.setModelType(pcl::SACMODEL_NORMAL_SPHERE);
    segmentation.setMethodType(pcl::SAC_RANSAC);
-   segmentation.setDistanceThreshold(1);
-   segmentation.setNormalDistanceWeight(0.5);
+   segmentation.setDistanceThreshold(2);
+   segmentation.setNormalDistanceWeight(0.1);
    segmentation.setOptimizeCoefficients(true);
-   segmentation.setRadiusLimits(15,25);
+   segmentation.setRadiusLimits(18,22);
    segmentation.setEpsAngle(1 / (180/3.141592654));
-   segmentation.setMaxIterations(10000);
+   segmentation.setMaxIterations(100000000);
 
    pcl::PointIndices inlierIndices;
    segmentation.segment(inlierIndices, *coefficients);
@@ -100,15 +106,15 @@ int main(int argc, char** argv) {
       // mark the found inliers in green
       for (int m=0; m<inlierIndices.indices.size(); ++m)
       {
-          cloud->points[inlierIndices.indices[m]].r = 255;
-          cloud->points[inlierIndices.indices[m]].g = 0;
-          cloud->points[inlierIndices.indices[m]].b = 0;
+          cloud_filtered->points[inlierIndices.indices[m]].r = 255;
+          cloud_filtered->points[inlierIndices.indices[m]].g = 0;
+          cloud_filtered->points[inlierIndices.indices[m]].b = 0;
       }
 
       std::cout << "Model coefficient: " << *coefficients << std::endl;
     }
 
-   pcl::io::savePLYFile("test_ply.ply", *cloud);
+   pcl::io::savePLYFile("test_ply.ply", *cloud_filtered);
 
    std::cerr << "Saved " << cloud->points.size () << " data points to test_ply.ply." << std::endl;
 }

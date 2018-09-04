@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 project(detect-sphere)
-
+set (CMAKE_CXX_STANDARD 11)
 #pcl
 find_package(PCL 1.3 REQUIRED)
 

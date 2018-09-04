@@ -50,3 +50,12 @@ void showStats(pcl::PointCloud<pcl::PointXYZRGBNormal> &cloud) {
     std::cout << "Points: " << cloud.points.size() << std::endl;
 
 }
+
+void colorPoints(pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud, pcl::PointIndices indices, int red) {
+    for (int m=0; m<indices.indices.size(); ++m)
+    {
+        cloud->points[indices.indices[m]].r = red;
+        cloud->points[indices.indices[m]].g = 0;
+        cloud->points[indices.indices[m]].b = 0;
+    }
+}
