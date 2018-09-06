@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
 
    segmentation.setInputCloud(cloud_filtered);
    segmentation.setInputNormals(cloud_filtered);
-   segmentation.setModelType(pcl::SACMODEL_NORMAL_SPHERE);
+   segmentation.setModelType(pcl::SACMODEL_NORMAL_PLANE);
    segmentation.setMethodType(pcl::SAC_RANSAC);
    segmentation.setDistanceThreshold(2);
    segmentation.setNormalDistanceWeight(0.1);

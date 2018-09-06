@@ -7,9 +7,11 @@
 #include <pcl/search/kdtree.h>
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl/filters/voxel_grid.h>
-
+#include <pcl/filters/extract_indices.h>
 
 #include "common.h"
+
+void find_sphere_and_mark(int cloudIndex, pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr& cloud);
 
 std::vector<uint32_t> colors{
   0x000000, 0xFFFF00, 0x1CE6FF, 0xFF34FF, 0xFF4A46, 0x008941, 0x006FA6, 0xA30059,
@@ -65,6 +67,18 @@ int main(int argc, char** argv) {
      int j = 0;
      for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
      {
+       pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cluster (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+       pcl::ExtractIndices<pcl::PointXYZRGBNormal> eifilter(true); // Initializing with true will allow us to extract the removed indices
+       pcl::PointIndices::Ptr indicesPtr (new pcl::PointIndices());
+       indicesPtr->indices = it->indices;
+
+       eifilter.setInputCloud(cloud_filtered);
+       eifilter.setIndices(indicesPtr);
+       eifilter.filter(*cluster);
+
+       find_sphere_and_mark(j, cluster); 
+       
+
        for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); ++pit) {
          uint32_t c = colors[j % (colors.size())];
          cloud_filtered->points[*pit].r = c >> 16 & 0x0000ff;
@@ -79,4 +93,45 @@ int main(int argc, char** argv) {
    pcl::io::savePLYFile("filtered_ply.ply", *cloud_filtered);
 
    std::cerr << "Saved " << cloud->points.size () << " data points to test_ply.ply." << std::endl;
+}
+
+
+void find_sphere_and_mark(int cloudIndex, pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr& cloud)
+{
+   pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
+   pcl::SACSegmentationFromNormals<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal> segmentation;
+
+   segmentation.setInputCloud(cloud);
+   segmentation.setInputNormals(cloud);
+   segmentation.setModelType(pcl::SACMODEL_NORMAL_SPHERE);
+   segmentation.setMethodType(pcl::SAC_RANSAC);
+   segmentation.setDistanceThreshold(2);
+   segmentation.setNormalDistanceWeight(0.1);
+   segmentation.setOptimizeCoefficients(true);
+   segmentation.setRadiusLimits(18,22);
+   segmentation.setEpsAngle(1 / (180/3.141592654));
+   segmentation.setMaxIterations(100000000);
+
+   pcl::PointIndices inlierIndices;
+   segmentation.segment(inlierIndices, *coefficients);
+
+   if (inlierIndices.indices.size() == 0)
+     cout << "Cluster: " << cloudIndex << "RANSAC nothing found" << "\n";
+    else
+    {
+      cout << "Cluster: " << cloudIndex << "RANSAC found shape with [%d] points:" << inlierIndices.indices.size() << "\n";
+      //for (int c=0; c<coefficients->values.size(); ++c)
+      //    ROS_INFO("Coeff %d = [%f]", (int)c+1, (float)coefficients->values[c]);
+
+      // mark the found inliers in green
+      for (int m=0; m<inlierIndices.indices.size(); ++m)
+      {
+          cloud->points[inlierIndices.indices[m]].r = 255;
+          cloud->points[inlierIndices.indices[m]].g = 0;
+          cloud->points[inlierIndices.indices[m]].b = 0;
+      }
+
+      std::cout << "Cluster: " << cloudIndex << "Model coefficient: " << *coefficients << std::endl;
+    }
+
 }
