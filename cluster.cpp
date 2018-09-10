@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 
 #include <pcl/io/ply_io.h>
 #include <pcl/io/pcd_io.h>
@@ -7,8 +8,14 @@
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/extract_indices.h>
+#include <pcl/filters/radius_outlier_removal.h>
+
+#include "boost/filesystem/operations.hpp"
+#include "boost/filesystem/path.hpp"
 
 #include "common.h"
+
+namespace fs = boost::filesystem;
 
 struct SegResult {
   pcl::ModelCoefficients::Ptr coef;
@@ -28,15 +35,102 @@ void find_sphere_and_mark(int cloudIndex, pcl::PointCloud<pcl::PointXYZRGBNormal
 
 void extract_indices(std::vector<int>& selected, std::vector<int>& orig, std::vector<int>& result);
 
+void find(std::string inputFile, std::string outFile, SegResult& result);
 
 int main(int argc, char** argv) {
 
-   std::cout << "Loading plt file: " << "\n";
+  if(argc != 3) {
+    std::cout << "Provide input file as an only argument";
+    return 1;
+  }
+
+  std::string dir = argv[1];
+  fs::path out_dir = fs::path(argv[2]);
+  fs::path out_results = fs::path(out_dir);
+    out_results /= "results.csv";
+  fs::directory_iterator end_iter;
+
+  std::ofstream result_file;
+  result_file.open(out_results.string());
+  result_file << "file;found;points;x;y;z;r\n";
+
+  for ( fs::directory_iterator dir_itr( dir );
+        dir_itr != end_iter;
+        ++dir_itr )
+    {
+      if ( fs::is_regular_file( dir_itr->status() ))
+            {
+              fs::path infilename = dir_itr->path().filename();
+              fs::path outfile = fs::path(out_dir) /= infilename;
+              std::cout << dir_itr->path().filename() << " to " << outfile << "\n";
+              SegResult result;
+              find(dir_itr->path().string(),outfile.string(), result);
+              result_file << infilename << ";" ;
+                if(result.is_empty()) {
+                  result_file << "N" << std::endl;
+                } else {
+                  auto c = result.coef->values;
+                  result_file << "Y;" <<  result.size() << ";" << c[0] << ";" << c[1] << ";" << c[2] << ";" << c[3] << std::endl;
+                }
+
+            }
+    }
+
+   result_file.close();
+}
+
+
+void find_sphere_and_mark(int cloudIndex, pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr& cloud, SegResult& result)
+{
+   pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
+   pcl::SACSegmentationFromNormals<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal> segmentation;
+
+   segmentation.setInputCloud(cloud);
+   segmentation.setInputNormals(cloud);
+   segmentation.setModelType(pcl::SACMODEL_NORMAL_SPHERE);
+   segmentation.setMethodType(pcl::SAC_RANSAC);
+   segmentation.setDistanceThreshold(1.25);
+   segmentation.setNormalDistanceWeight(0.1);
+   segmentation.setOptimizeCoefficients(true);
+   segmentation.setRadiusLimits(20,21);
+   segmentation.setEpsAngle(1 / (180/3.141592654));
+   segmentation.setMaxIterations(1000000);
+
+   pcl::PointIndices::Ptr indx(new pcl::PointIndices());
+   segmentation.segment(*indx, *coefficients);
+
+   if (indx->indices.size() == 0)
+     std::cout << "Cluster: " << cloudIndex << ". RANSAC nothing found" << "\n";
+    else
+    {
+      std::cout << "Cluster: " << cloudIndex << ". RANSAC found shape with [%d] points:" << indx->indices.size() << "\n";
+      double part = (double)indx->indices.size() / (double) cloud->points.size() * 100;
+      std::cout << "Cluster: " << cloudIndex << ". Model coefficient: " << *coefficients << std::endl << "Points: " << indx->indices.size() << " ("<< part <<"%)" << std::endl;
+    }
+
+   result.coef = coefficients;
+   result.ind = indx;
+
+}
+
+void extract_indices(std::vector<int>& selected, std::vector<int>& orig, std::vector<int>& result)
+{
+  for(int i=0;i<selected.size();i++) {
+    result.push_back(orig[selected[i]]);
+  }
+}
+
+
+void find(std::string inputFile, std::string outFile, SegResult& result)
+{
+  std::cout << "Loading plt file: "<< inputFile << "\n";
 
    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+   pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_filtered0 (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
 
-   std::string file = "/home/controller/ceres/detect-sphere-build/img/PhoFrame(0007).ply";
+   std::string file = inputFile;
+   //   std::string file = "/home/controller/ceres/detect-sphere-build/img/PhoFrame(0007).ply";
    //std::string file = "/home/controller/ceres/detect-sphere-build/img/less5.ply";
    //std::string file = "/home/controller/ceres/detect-sphere-build/img/ball.ply";
    pcl::io::loadPLYFile(file, *cloud);
@@ -51,17 +145,27 @@ int main(int argc, char** argv) {
    // Create the filtering object: downsample the dataset using a leaf size of 1cm
    pcl::VoxelGrid<pcl::PointXYZRGBNormal> vg;
    vg.setInputCloud(cloud);
-   vg.setLeafSize (1.f, 1.f, 1.f);
-   vg.filter (*cloud_filtered);
+   vg.setLeafSize (0.75f, 0.75f, 0.75f);
+   vg.filter (*cloud_filtered0);
    std::cout << "PointCloud after filtering has: " << cloud_filtered->points.size ()  << " data points." << std::endl; //*
 
-   remove_plane(cloud_filtered, 3);
+   remove_plane(cloud_filtered0, 3);
+
+   // Remove outliers
+   pcl::RadiusOutlierRemoval<pcl::PointXYZRGBNormal> outrem;
+   // build the filter
+   outrem.setInputCloud(cloud_filtered0);
+   outrem.setRadiusSearch(1.8);
+   outrem.setMinNeighborsInRadius (6);
+   // apply filter
+   outrem.filter (*cloud_filtered);
+   std::cout << "ROR: from" << cloud_filtered0->points.size() << " to " << cloud_filtered->points.size() << std::endl;
 
    pcl::search::KdTree<pcl::PointXYZRGBNormal>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGBNormal>);
      tree->setInputCloud (cloud_filtered);
      std::vector<pcl::PointIndices> cluster_indices;
      pcl::EuclideanClusterExtraction<pcl::PointXYZRGBNormal> ec;
-     ec.setClusterTolerance (5); 
+     ec.setClusterTolerance (10); 
      ec.setMinClusterSize (100);
      ec.setMaxClusterSize (250000);
      ec.setSearchMethod(tree);
@@ -91,7 +195,7 @@ int main(int argc, char** argv) {
          std::cout << "Found new maxResult... maxResult.size = " << maxResult.size() << std::endl;
        }
 
-       //      colorPoints(cloud_filtered, *it, j);
+       //colorPoints(cloud_filtered, *it, j);
 
        j++;
      }
@@ -106,52 +210,11 @@ int main(int argc, char** argv) {
        extract_indices(maxResult.ind->indices, maxResult.clusterInd->indices, pi.indices);
        colorPoints(cloud_filtered, pi, 1);
 
+       result = maxResult;
      }
 
 
-   pcl::io::savePLYFile("filtered_ply.ply", *cloud_filtered);
+   pcl::io::savePLYFile(outFile, *cloud_filtered);
 
-   std::cerr << "Saved " << cloud->points.size () << " data points to test_ply.ply." << std::endl;
+   std::cerr << "Saved " << cloud->points.size () << " data points to "<< outFile << std::endl;
 }
-
-
-void find_sphere_and_mark(int cloudIndex, pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr& cloud, SegResult& result)
-{
-   pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
-   pcl::SACSegmentationFromNormals<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal> segmentation;
-
-   segmentation.setInputCloud(cloud);
-   segmentation.setInputNormals(cloud);
-   segmentation.setModelType(pcl::SACMODEL_NORMAL_SPHERE);
-   segmentation.setMethodType(pcl::SAC_RANSAC);
-   segmentation.setDistanceThreshold(1);
-   segmentation.setNormalDistanceWeight(0.1);
-   segmentation.setOptimizeCoefficients(true);
-   segmentation.setRadiusLimits(19.5,21);
-   segmentation.setEpsAngle(1 / (180/3.141592654));
-   segmentation.setMaxIterations(1000000);
-
-   pcl::PointIndices::Ptr indx(new pcl::PointIndices());
-   segmentation.segment(*indx, *coefficients);
-
-   if (indx->indices.size() == 0)
-     std::cout << "Cluster: " << cloudIndex << ". RANSAC nothing found" << "\n";
-    else
-    {
-      std::cout << "Cluster: " << cloudIndex << ". RANSAC found shape with [%d] points:" << indx->indices.size() << "\n";
-      double part = (double)indx->indices.size() / (double) cloud->points.size() * 100;
-      std::cout << "Cluster: " << cloudIndex << ". Model coefficient: " << *coefficients << std::endl << "Points: " << indx->indices.size() << " ("<< part <<"%)" << std::endl;
-    }
-
-   result.coef = coefficients;
-   result.ind = indx;
-
-}
-
-void extract_indices(std::vector<int>& selected, std::vector<int>& orig, std::vector<int>& result)
-{
-  for(int i=0;i<selected.size();i++) {
-    result.push_back(orig[selected[i]]);
-  }
-}
-
