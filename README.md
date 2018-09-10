@@ -48,3 +48,5 @@ Processing of cloud:
 If we exclude obviously bad match (0000, 0004) than root mean square error 0.1mm.
 
 # Snapshots
+![alt text](https://github.com/devone2/detect-sphere/raw/master/ds-out/detected_04.png "0004.ply")
+![alt text](https://github.com/devone2/detect-sphere/raw/master/ds-out/detected_10.png "0010.ply")
