@@ -46,3 +46,5 @@ Processing of cloud:
 
 
 If we exclude obviously bad match (0000, 0004) than root mean square error 0.1mm.
+
+# Snapshots
