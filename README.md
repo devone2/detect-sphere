@@ -7,7 +7,7 @@ when in container build with cmake
 
 # Run
 ```
-./cluster input_dir output_dir
+./detect-spehere input_dir output_dir
 ```
 Program expects only *.ply files in input_dir. It will produce filtered *.ply files with marked detected ball with yellow color. It will write sphere parameters in results.csv.
 PCL ply file reader cannot handle line
@@ -45,7 +45,7 @@ Processing of cloud:
 | PhoFrame(00010).ply | Y     | 1742   | -54.4977 | -70.1152 | 776.216 | 20.2156 | -54.475  | -70.082  | 776.269 | 0.00442653        | 0.066532172668569 | 
 
 
-If we exclude obviously bad match (0000, 0004) than root mean square error 0.1mm.
+If we exclude obviously bad match (0000, 0004) than average difference (L2 value) is 0.1mm with stdev 0.08mm.
 
 # Snapshots
 ![alt text](https://github.com/devone2/detect-sphere/raw/master/ds-out/detected_04.png "0004.ply")

@@ -12,8 +12,8 @@ add_definitions(${PCL_DEFINITIONS})
 SET(TARGET_H "src/common.h")
 SET(TARGET_SRC "src/common.cpp")
 
-add_executable("cluster" "src/cluster.cpp" ${TARGET_H} ${TARGET_SRC})
-target_link_libraries("cluster" ${PCL_LIBRARIES})
+add_executable("detect-sphere" "src/cluster.cpp" ${TARGET_H} ${TARGET_SRC})
+target_link_libraries("detect-sphere" ${PCL_LIBRARIES})
 
 
 
