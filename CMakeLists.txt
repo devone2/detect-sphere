@@ -9,13 +9,10 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
 
-SET(TARGET_H common.h)
-SET(TARGET_SRC common.cpp)
+SET(TARGET_H "src/common.h")
+SET(TARGET_SRC "src/common.cpp")
 
-add_executable("detect-sphere" "pclmain.cpp"  ${TARGET_H} ${TARGET_SRC})
-target_link_libraries("detect-sphere" ${PCL_LIBRARIES})
-
-add_executable("cluster" "cluster.cpp" ${TARGET_H} ${TARGET_SRC})
+add_executable("cluster" "src/cluster.cpp" ${TARGET_H} ${TARGET_SRC})
 target_link_libraries("cluster" ${PCL_LIBRARIES})
 
 
